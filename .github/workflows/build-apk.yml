@@ -22,14 +22,45 @@ jobs:
           yes | $SDKM --licenses > /dev/null || true
           $SDKM "platforms;android-35" "build-tools;34.0.0" "ndk;29.0.13846066"
 
-      - name: Build APK and Bcore AAR
+      - name: Lower Java version to 8
+        run: |
+          find . -name "build.gradle" -not -path "./.git/*" -exec sed -i -E 's/VERSION_(11|17|21)/VERSION_1_8/g' {} +
+          grep -rn "VERSION_" --include=build.gradle . | head -20
+
+      - name: Build libraries
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug :Bcore:assembleRelease --no-daemon
+          ./gradlew :Bcore:assembleRelease :black-reflection:assemble --no-daemon
+
+      - name: Collect libraries
+        run: |
+          mkdir -p out
+          cp Bcore/build/outputs/aar/Bcore-release.aar out/
+          cp black-reflection/build/libs/*.jar out/ || true
+          find ~/.gradle ~/.m2 -type f \( -name "FreeReflection-*.aar" -o -name "FreeReflection-*.jar" -o -name "toml4j-*.jar" -o -name "gson-*.jar" \) ! -name "*sources*" -exec cp {} out/ \; || true
+          ls -la out
+
+      - name: Show Java class versions
+        run: |
+          python3 - <<'EOF'
+          import zipfile, glob, struct, io
+
+          def major(z):
+              for n in z.namelist():
+                  if n.endswith('.class') and not n.startswith('META-INF'):
+                      return struct.unpack('>H', z.read(n)[6:8])[0]
+
+          for f in sorted(glob.glob('out/*')):
+              try:
+                  z = zipfile.ZipFile(f)
+                  if f.endswith('.aar'):
+                      z = zipfile.ZipFile(io.BytesIO(z.read('classes.jar')))
+                  print(f, 'major', major(z), '(Java 8 = 52)')
+              except Exception as e:
+                  print(f, 'skip', e)
+          EOF
 
       - uses: actions/upload-artifact@v4
         with:
-          name: newblackbox-debug
-          path: |
-            **/build/outputs/apk/**/*.apk
-            **/build/outputs/aar/*.aar
+          name: bcore-libs
+          path: out/*
