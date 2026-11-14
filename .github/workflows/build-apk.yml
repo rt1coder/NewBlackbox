@@ -32,11 +32,17 @@ jobs:
           chmod +x gradlew
           ./gradlew :Bcore:assembleRelease :black-reflection:assemble --no-daemon
 
+      - name: Recompile black-reflection for Java 8
+        run: |
+          mkdir -p br-classes
+          javac --release 8 -d br-classes $(find black-reflection/src -name "*.java")
+          (cd br-classes && jar cf ../black-reflection-java8.jar .)
+
       - name: Collect libraries
         run: |
           mkdir -p out
           cp Bcore/build/outputs/aar/Bcore-release.aar out/
-          cp black-reflection/build/libs/*.jar out/ || true
+          cp black-reflection-java8.jar out/
           find ~/.gradle ~/.m2 -type f \( -name "FreeReflection-*.aar" -o -name "FreeReflection-*.jar" -o -name "toml4j-*.jar" -o -name "gson-*.jar" \) ! -name "*sources*" -exec cp {} out/ \; || true
           ls -la out
 
