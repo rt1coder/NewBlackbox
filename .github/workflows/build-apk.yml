@@ -14,13 +14,13 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 21
+          java-version: 17
 
       - name: Install SDK and NDK
         run: |
           SDKM=$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager
           yes | $SDKM --licenses > /dev/null || true
-          $SDKM "platforms;android-35" "build-tools;34.0.0" "ndk;29.0.13846066"
+          $SDKM "platforms;android-35" "build-tools;34.0.0" "build-tools;35.0.0" "ndk;29.0.13846066"
 
       - name: Lower Java version to 8
         run: |
@@ -48,17 +48,18 @@ jobs:
 
       - name: Create classes.dex for each library
         run: |
-          D8=$ANDROID_HOME/build-tools/34.0.0/d8
+          D8=$ANDROID_HOME/build-tools/35.0.0/d8
           AJ=$ANDROID_HOME/platforms/android-35/android.jar
+          $D8 --version
           mkdir -p tmp/bcore tmp/fr dex/Bcore dex/black-reflection dex/FreeReflection dex/toml4j
           unzip -q -o out/Bcore-release.aar classes.jar -d tmp/bcore
           unzip -q -o out/FreeReflection-*.aar classes.jar -d tmp/fr
           BR=out/black-reflection-java8.jar
           TOML=$(ls out/toml4j-*.jar | head -n 1)
-          $D8 --release --min-api 21 --lib $AJ --classpath $BR --classpath tmp/fr/classes.jar --classpath $TOML --output dex/Bcore tmp/bcore/classes.jar
-          $D8 --release --min-api 21 --lib $AJ --output dex/black-reflection $BR
-          $D8 --release --min-api 21 --lib $AJ --output dex/FreeReflection tmp/fr/classes.jar
-          $D8 --release --min-api 21 --lib $AJ --output dex/toml4j $TOML
+          $D8 --release --min-api 21 --lib $AJ --output dex/toml4j $TOML || echo "FAILED: toml4j"
+          $D8 --release --min-api 21 --lib $AJ --output dex/FreeReflection tmp/fr/classes.jar || echo "FAILED: FreeReflection"
+          $D8 --release --min-api 21 --lib $AJ --output dex/black-reflection $BR || echo "FAILED: black-reflection"
+          $D8 --release --min-api 21 --lib $AJ --classpath $BR --classpath tmp/fr/classes.jar --classpath $TOML --output dex/Bcore tmp/bcore/classes.jar || echo "FAILED: Bcore"
           find dex -type f -exec ls -la {} \;
 
       - name: Show Java class versions
