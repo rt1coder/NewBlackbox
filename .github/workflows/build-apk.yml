@@ -46,6 +46,21 @@ jobs:
           find ~/.gradle ~/.m2 -type f \( -name "FreeReflection-*.aar" -o -name "FreeReflection-*.jar" -o -name "toml4j-*.jar" -o -name "gson-*.jar" \) ! -name "*sources*" -exec cp {} out/ \; || true
           ls -la out
 
+      - name: Create classes.dex for each library
+        run: |
+          D8=$ANDROID_HOME/build-tools/34.0.0/d8
+          AJ=$ANDROID_HOME/platforms/android-35/android.jar
+          mkdir -p tmp/bcore tmp/fr dex/Bcore dex/black-reflection dex/FreeReflection dex/toml4j
+          unzip -q -o out/Bcore-release.aar classes.jar -d tmp/bcore
+          unzip -q -o out/FreeReflection-*.aar classes.jar -d tmp/fr
+          BR=out/black-reflection-java8.jar
+          TOML=$(ls out/toml4j-*.jar | head -n 1)
+          $D8 --release --min-api 21 --lib $AJ --classpath $BR --classpath tmp/fr/classes.jar --classpath $TOML --output dex/Bcore tmp/bcore/classes.jar
+          $D8 --release --min-api 21 --lib $AJ --output dex/black-reflection $BR
+          $D8 --release --min-api 21 --lib $AJ --output dex/FreeReflection tmp/fr/classes.jar
+          $D8 --release --min-api 21 --lib $AJ --output dex/toml4j $TOML
+          find dex -type f -exec ls -la {} \;
+
       - name: Show Java class versions
         run: |
           python3 - <<'EOF'
@@ -70,3 +85,8 @@ jobs:
         with:
           name: bcore-libs
           path: out/*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dex
+          path: dex
