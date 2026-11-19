@@ -512,6 +512,16 @@ public class IActivityManagerProxy extends ClassInvocationStub {
                         ProxyPendingRecord.saveStub(shadow, intent, BActivityThread.getUserId());
                         intents[i] = shadow;
                         break;
+                    case ActivityManagerCompat.INTENT_SENDER_BROADCAST:
+                        // Same routing as sendBroadcast(): the system only knows the host package,
+                        // so the PendingIntent targets the host and carries the real intent inside.
+                        if (intent.getAction() != null) {
+                            Intent bShadow = new Intent(intent.getAction());
+                            bShadow.setPackage(BlackBoxCore.getHostPkg());
+                            ProxyBroadcastRecord.saveStub(bShadow, intent, BActivityThread.getUserId());
+                            intents[i] = bShadow;
+                        }
+                        break;
                 }
             }
             IInterface invoke = (IInterface) method.invoke(who, args);

@@ -7,6 +7,7 @@ import android.content.pm.PackageManager;
 import android.os.Environment;
 import android.os.Process;
 import android.text.TextUtils;
+import android.util.Log;
 
 import java.io.File;
 import java.util.HashMap;
@@ -133,7 +134,9 @@ public class IOCore {
 
             // The guest's own getExternalCacheDir() is often null (the host cannot create another
             // package's Android/data folder), so only the host's external storage decides this.
-            if (BlackBoxCore.getContext().getExternalCacheDir() != null) {
+            File hostExt = BlackBoxCore.getContext().getExternalCacheDir();
+            Log.d(TAG, "external redirect for " + packageName + ": hostExternalCache=" + hostExt);
+            if (hostExt != null) {
                 File external = BEnvironment.getExternalUserDir(BlackBoxCore.getUserId());
                 FileUtils.mkdirs(BEnvironment.getExternalDataDir(packageName, BlackBoxCore.getUserId()).getAbsolutePath() + "/files");
                 FileUtils.mkdirs(BEnvironment.getExternalDataDir(packageName, BlackBoxCore.getUserId()).getAbsolutePath() + "/cache");
@@ -154,6 +157,7 @@ public class IOCore {
         }
         for (String key : rule.keySet()) {
             get().addRedirect(key, rule.get(key));
+            if (key.startsWith("/sdcard") || key.startsWith("/storage")) Log.d(TAG, "rule " + key + " -> " + rule.get(key));
         }
         for (String s : blackRule) {
             get().addBlackRedirect(s);
