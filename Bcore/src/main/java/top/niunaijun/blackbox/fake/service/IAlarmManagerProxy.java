@@ -9,6 +9,8 @@ import black.android.os.BRServiceManager;
 import top.niunaijun.blackbox.fake.hook.BinderInvocationStub;
 import top.niunaijun.blackbox.fake.hook.MethodHook;
 import top.niunaijun.blackbox.fake.hook.ProxyMethod;
+import top.niunaijun.blackbox.utils.MethodParameterUtils;
+import top.niunaijun.blackbox.utils.Slog;
 
 
 public class IAlarmManagerProxy extends BinderInvocationStub {
@@ -31,7 +33,13 @@ public class IAlarmManagerProxy extends BinderInvocationStub {
     public static class Set extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            return 0;
+            try {
+                MethodParameterUtils.replaceFirstAppPkg(args);
+                return method.invoke(who, args);
+            } catch (Throwable e) {
+                Slog.w("IAlarmManagerProxy", "set failed, alarm dropped: " + e);
+                return 0;
+            }
         }
     }
 

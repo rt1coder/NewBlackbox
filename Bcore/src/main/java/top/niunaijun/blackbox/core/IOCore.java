@@ -131,8 +131,12 @@ public class IOCore {
             rule.put(String.format("/data/misc/profiles/cur/%d/%s", BlackBoxCore.getUserId(), packageName), profilesCurDir.getAbsolutePath());
             rule.put(String.format("/data/misc/profiles/ref/%d/%s", BlackBoxCore.getUserId(), packageName), profilesRefDir.getAbsolutePath());
 
-            if (BlackBoxCore.getContext().getExternalCacheDir() != null && context.getExternalCacheDir() != null) {
+            // The guest's own getExternalCacheDir() is often null (the host cannot create another
+            // package's Android/data folder), so only the host's external storage decides this.
+            if (BlackBoxCore.getContext().getExternalCacheDir() != null) {
                 File external = BEnvironment.getExternalUserDir(BlackBoxCore.getUserId());
+                FileUtils.mkdirs(BEnvironment.getExternalDataDir(packageName, BlackBoxCore.getUserId()).getAbsolutePath() + "/files");
+                FileUtils.mkdirs(BEnvironment.getExternalDataDir(packageName, BlackBoxCore.getUserId()).getAbsolutePath() + "/cache");
 
                 
                 rule.put("/sdcard", external.getAbsolutePath());

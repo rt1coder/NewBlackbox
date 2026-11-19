@@ -142,7 +142,12 @@ public class ActivityStack {
             return startActivityInNewTaskLocked(userId, intent, activityInfo, resultTo, launchModeFlags);
         }
         
-        mAms.moveTaskToFront(taskRecord.id, 0);
+        try {
+            mAms.moveTaskToFront(taskRecord.id, 0);
+        } catch (Throwable e) {
+            // Host may lack REORDER_TASKS; bringing the task forward is optional, starting the activity is not.
+            Log.w(TAG, "moveTaskToFront failed, continuing: " + e);
+        }
 
         boolean notStartToFront = false;
         if (clearTop || singleTop || clearTask) {
@@ -248,7 +253,8 @@ public class ActivityStack {
             if (top != null) {
                 resultTo = top.token;
             }
-        } else if (sourceTask != null) {
+        } else if (sourceTask != null && requestCode < 0) {
+            // Only re-target plain starts. startActivityForResult must keep the real caller, or the result is lost.
             ActivityRecord top = sourceTask.getTopActivityRecord();
             if (top != null) {
                 resultTo = top.token;
