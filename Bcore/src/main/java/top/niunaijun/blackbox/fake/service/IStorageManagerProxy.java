@@ -3,6 +3,7 @@ package top.niunaijun.blackbox.fake.service;
 import android.os.IInterface;
 import android.os.storage.StorageVolume;
 
+import java.io.File;
 import java.lang.reflect.Method;
 
 import black.android.os.BRServiceManager;
@@ -10,6 +11,7 @@ import black.android.os.mount.BRIMountServiceStub;
 import black.android.os.storage.BRIStorageManagerStub;
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.app.BActivityThread;
+import top.niunaijun.blackbox.core.IOCore;
 import top.niunaijun.blackbox.fake.hook.BinderInvocationStub;
 import top.niunaijun.blackbox.fake.hook.MethodHook;
 import top.niunaijun.blackbox.fake.hook.ProxyMethod;
@@ -73,6 +75,16 @@ public class IStorageManagerProxy extends BinderInvocationStub {
     public static class mkdirs extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            if (args != null) {
+                for (Object a : args) {
+                    if (a instanceof String && ((String) a).startsWith("/")) {
+                        try {
+                            new File(IOCore.get().redirectPath((String) a)).mkdirs();
+                        } catch (Throwable ignored) {
+                        }
+                    }
+                }
+            }
             return 0;
         }
     }

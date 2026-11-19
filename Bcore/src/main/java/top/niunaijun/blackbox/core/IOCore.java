@@ -27,6 +27,7 @@ import top.niunaijun.blackbox.utils.TrieTree;
 @SuppressLint("SdCardPath")
 public class IOCore {
     public static final String TAG = "IOCore";
+    private static final String LOG = "BlackBoxIO";
 
     private static final IOCore sIOCore = new IOCore();
     private static final TrieTree mTrieTree = new TrieTree();
@@ -132,37 +133,71 @@ public class IOCore {
             rule.put(String.format("/data/misc/profiles/cur/%d/%s", BlackBoxCore.getUserId(), packageName), profilesCurDir.getAbsolutePath());
             rule.put(String.format("/data/misc/profiles/ref/%d/%s", BlackBoxCore.getUserId(), packageName), profilesRefDir.getAbsolutePath());
 
-            // The guest's own getExternalCacheDir() is often null (the host cannot create another
-            // package's Android/data folder), so only the host's external storage decides this.
-            File hostExt = BlackBoxCore.getContext().getExternalCacheDir();
-            Log.d(TAG, "external redirect for " + packageName + ": hostExternalCache=" + hostExt);
-            if (hostExt != null) {
-                File external = BEnvironment.getExternalUserDir(BlackBoxCore.getUserId());
-                FileUtils.mkdirs(BEnvironment.getExternalDataDir(packageName, BlackBoxCore.getUserId()).getAbsolutePath() + "/files");
-                FileUtils.mkdirs(BEnvironment.getExternalDataDir(packageName, BlackBoxCore.getUserId()).getAbsolutePath() + "/cache");
-
-                
-                rule.put("/sdcard", external.getAbsolutePath());
-                rule.put(String.format("/storage/emulated/%d", systemUserId), external.getAbsolutePath());
-
-                blackRule.add("/sdcard/Pictures");
-                blackRule.add(String.format("/storage/emulated/%d/Pictures", systemUserId));
-            }
+            File external = externalUserRoot(BlackBoxCore.getUserId());
+            String[] sub = {"Android/data/" + packageName + "/files", "Android/data/" + packageName + "/cache",
+                    "Android/obb/" + packageName, "Download", "Documents", "DCIM", "Movies", "Music"};
+            for (String d : sub) new File(external, d).mkdirs();
+            Log.w(LOG, "external redirect for " + packageName + " -> " + external
+                    + " filesDirReady=" + new File(external, sub[0]).isDirectory());
+            rule.put("/sdcard", external.getAbsolutePath());
+            rule.put(String.format("/storage/emulated/%d", systemUserId), external.getAbsolutePath());
+            rule.put(String.format("/mnt/user/%d/primary", systemUserId), external.getAbsolutePath());
+            blackRule.add("/sdcard/Pictures");
+            blackRule.add(String.format("/storage/emulated/%d/Pictures", systemUserId));
             if (BlackBoxCore.get().isHideRoot()) {
                 hideRoot(rule);
             }
             proc(rule);
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (Throwable e) {
+            Log.e(LOG, "enableRedirect failed for " + packageName, e);
         }
         for (String key : rule.keySet()) {
             get().addRedirect(key, rule.get(key));
-            if (key.startsWith("/sdcard") || key.startsWith("/storage")) Log.d(TAG, "rule " + key + " -> " + rule.get(key));
+        }
+        try {
+            Object os = Class.forName("libcore.io.Libcore").getField("os").get(null);
+            Log.w(LOG, "rules=" + rule.size() + " libcoreOs=" + (os == null ? "null" : os.getClass().getName()));
+        } catch (Throwable e) {
+            Log.w(LOG, "rules=" + rule.size() + " libcoreOs=? " + e);
         }
         for (String s : blackRule) {
             get().addBlackRedirect(s);
         }
         NativeCore.enableIO();
+    }
+
+    private static File externalUserRoot(int userId) {
+        String rel = "storage/emulated/" + userId;
+        File base = BEnvironment.getExternalVirtualRoot();
+        if (base == null) {
+            try {
+                base = BlackBoxCore.getContext().getExternalFilesDir("blackbox");
+            } catch (Throwable ignored) {
+            }
+        }
+        if (base == null) {
+            base = new File(Environment.getExternalStorageDirectory(),
+                    "Android/data/" + BlackBoxCore.getHostPkg() + "/files/blackbox");
+        }
+        File ext = new File(base, rel);
+        if (writable(ext)) return ext;
+        File internal = new File(BEnvironment.getVirtualRoot(), "external/" + rel);
+        Log.w(LOG, "external root not writable (" + ext + "), using internal " + internal);
+        writable(internal);
+        return internal;
+    }
+
+    private static boolean writable(File dir) {
+        try {
+            dir.mkdirs();
+            if (!dir.isDirectory()) return false;
+            File t = new File(dir, ".bb_w");
+            new java.io.FileOutputStream(t).close();
+            t.delete();
+            return true;
+        } catch (Throwable e) {
+            return false;
+        }
     }
 
     private void hideRoot(Map<String, String> rule) {
