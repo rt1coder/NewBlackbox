@@ -139,8 +139,8 @@ public class WebViewProxy extends ClassInvocationStub {
 
                     
                     String userAgent = settings.getUserAgentString();
-                    if (userAgent != null && !userAgent.contains("BlackBox")) {
-                        settings.setUserAgentString(userAgent + " BlackBox");
+                    if (userAgent != null && userAgent.contains(" BlackBox")) {
+                        settings.setUserAgentString(userAgent.replace(" BlackBox", ""));
                     }
 
                     

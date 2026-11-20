@@ -7,10 +7,19 @@ import android.app.NotificationChannel;
 import android.app.NotificationChannelGroup;
 import android.app.NotificationManager;
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.Icon;
+import android.util.Log;
 import android.os.Binder;
 import android.os.Build;
 import android.os.RemoteException;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -26,6 +35,7 @@ import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.core.system.BProcessManagerService;
 import top.niunaijun.blackbox.core.system.ISystemService;
 import top.niunaijun.blackbox.core.system.ProcessRecord;
+import top.niunaijun.blackbox.core.system.pm.BPackageManagerService;
 import top.niunaijun.blackbox.utils.compat.BuildCompat;
 
 
@@ -190,7 +200,65 @@ public class BNotificationManagerService extends IBNotificationManagerService.St
         synchronized (notificationRecord.mIds) {
             notificationRecord.mIds.add(notificationId);
         }
+        decorate(notification, processByPid.getPackageName(), userId);
         mRealNotificationManager.notify(notificationId, notification);
+    }
+
+    private final Map<String, CharSequence> mLabels = new HashMap<>();
+
+    private void decorate(Notification n, String pkg, int userId) {
+        if (n == null || pkg == null) return;
+        try {
+            ApplicationInfo ai = BPackageManagerService.get().getApplicationInfo(pkg, 0, userId);
+            if (ai == null) return;
+            PackageManager pm = BlackBoxCore.getContext().getPackageManager();
+            String key = pkg + "@" + userId;
+            CharSequence label;
+            synchronized (mLabels) {
+                label = mLabels.get(key);
+            }
+            if (label == null) {
+                try {
+                    label = ai.loadLabel(pm);
+                } catch (Throwable ignored) {
+                }
+                if (label == null) label = pkg;
+                synchronized (mLabels) {
+                    mLabels.put(key, label);
+                }
+            }
+            if (n.extras != null && n.extras.getCharSequence(Notification.EXTRA_SUB_TEXT) == null
+                    && !pkg.contentEquals(label)) {
+                n.extras.putCharSequence(Notification.EXTRA_SUB_TEXT, label);
+            }
+            if (Build.VERSION.SDK_INT >= 28) fixSmallIcon(n, pkg, ai, pm);
+        } catch (Throwable e) {
+            Log.w("BlackBoxNotify", "decorate notification failed for " + pkg + ": " + e);
+        }
+    }
+
+    @TargetApi(28)
+    private void fixSmallIcon(Notification n, String pkg, ApplicationInfo ai, PackageManager pm) throws Exception {
+        Icon icon = n.getSmallIcon();
+        if (icon == null || icon.getType() != Icon.TYPE_RESOURCE) return;
+        int resId = icon.getResId();
+        if ((resId >>> 24) == 0x01) return;
+        if (!pkg.equals(icon.getResPackage())) return;
+        Resources res = pm.getResourcesForApplication(ai);
+        Drawable d = res.getDrawable(resId, null);
+        if (d == null) return;
+        int w = Math.max(1, d.getIntrinsicWidth()), h = Math.max(1, d.getIntrinsicHeight());
+        if (w > 256 || h > 256) {
+            w = 96;
+            h = 96;
+        }
+        Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(bmp);
+        d.setBounds(0, 0, w, h);
+        d.draw(c);
+        Field f = Notification.class.getDeclaredField("mSmallIcon");
+        f.setAccessible(true);
+        f.set(n, Icon.createWithBitmap(bmp));
     }
 
     @Override
