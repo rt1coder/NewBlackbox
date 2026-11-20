@@ -779,6 +779,11 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
     }
 
     void onPackageUninstalled(String packageName, boolean isRemove, int userId) {
+        try {
+            top.niunaijun.blackbox.core.engine.PermGate.forget(packageName, userId);
+        } catch (Throwable e) {
+            Slog.w(TAG, "could not clear permissions of " + packageName, e);
+        }
         for (PackageMonitor packageMonitor : mPackageMonitors) {
             packageMonitor.onPackageUninstalled(packageName, isRemove, userId);
         }

@@ -110,6 +110,13 @@ public final class PermGate {
         save(pkg, userId, s);
     }
 
+    public static synchronized void forget(String pkg, int userId) {
+        File f = file(pkg, userId);
+        if (f != null) f.delete();
+        sCache.remove(userId + "_" + pkg);
+        sCacheTime.remove(userId + "_" + pkg);
+    }
+
     public static boolean isDangerous(String perm) {
         if (perm == null) return false;
         synchronized (sDangerous) {
