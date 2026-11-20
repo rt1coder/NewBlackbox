@@ -15,6 +15,7 @@ import java.lang.reflect.Method;
 import androidx.core.app.NotificationCompat;
 
 import top.niunaijun.blackbox.BlackBoxCore;
+import top.niunaijun.blackbox.core.engine.EngineLog;
 import top.niunaijun.blackbox.utils.compat.BuildCompat;
 
 
@@ -130,10 +131,17 @@ public class DaemonService extends Service {
     }
 
     
+    private static boolean noticeMissingLogged;
+
     private Class<?> hostNotice() {
+        String name = getPackageName() + ".EngineNotice";
         try {
-            return Class.forName(getPackageName() + ".EngineNotice", true, getClassLoader());
+            return Class.forName(name, true, getClassLoader());
         } catch (Throwable t) {
+            if (!noticeMissingLogged) {
+                noticeMissingLogged = true;
+                EngineLog.error(TAG, "Host notification class not found: " + name + " (engine notification used)", t);
+            }
             return null;
         }
     }
@@ -145,7 +153,7 @@ public class DaemonService extends Service {
             Method m = c.getMethod("onCommand", Service.class, Intent.class);
             m.invoke(null, this, intent);
         } catch (Throwable t) {
-            Log.w(TAG, "Host notice command failed: " + t);
+            EngineLog.error(TAG, "Host notification command failed", t);
         }
     }
 
@@ -158,7 +166,7 @@ public class DaemonService extends Service {
                 if (n instanceof Notification) return (Notification) n;
             }
         } catch (Throwable t) {
-            Log.w(TAG, "Host notice build failed, using the engine notification: " + t);
+            EngineLog.error(TAG, "Host notification build failed, engine notification used", t);
         }
         try {
             NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
