@@ -13,6 +13,7 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -114,11 +115,11 @@ public class IOCore {
         try {
             ApplicationInfo packageInfo = BlackBoxCore.getBPackageManager().getApplicationInfo(packageName, PackageManager.GET_META_DATA, BlackBoxCore.getUserId());
             int systemUserId = BlackBoxCore.getHostUserId();
-            rule.put(String.format("/data/data/%s/lib", packageName), packageInfo.nativeLibraryDir);
-            rule.put(String.format("/data/user/%d/%s/lib", systemUserId, packageName), packageInfo.nativeLibraryDir);
+            rule.put(String.format(Locale.US, "/data/data/%s/lib", packageName), packageInfo.nativeLibraryDir);
+            rule.put(String.format(Locale.US, "/data/user/%d/%s/lib", systemUserId, packageName), packageInfo.nativeLibraryDir);
 
-            rule.put(String.format("/data/data/%s", packageName), packageInfo.dataDir);
-            rule.put(String.format("/data/user/%d/%s", systemUserId, packageName), packageInfo.dataDir);
+            rule.put(String.format(Locale.US, "/data/data/%s", packageName), packageInfo.dataDir);
+            rule.put(String.format(Locale.US, "/data/user/%d/%s", systemUserId, packageName), packageInfo.dataDir);
 
             
             File profilesRoot = new File(BEnvironment.getVirtualRoot(), "profiles");
@@ -126,12 +127,12 @@ public class IOCore {
             
             rule.put("/data/misc/profiles", profilesRoot.getAbsolutePath());
 
-            File profilesCurDir = new File(profilesRoot, String.format("cur/%d/%s", BlackBoxCore.getUserId(), packageName));
-            File profilesRefDir = new File(profilesRoot, String.format("ref/%d/%s", BlackBoxCore.getUserId(), packageName));
+            File profilesCurDir = new File(profilesRoot, String.format(Locale.US, "cur/%d/%s", BlackBoxCore.getUserId(), packageName));
+            File profilesRefDir = new File(profilesRoot, String.format(Locale.US, "ref/%d/%s", BlackBoxCore.getUserId(), packageName));
             FileUtils.mkdirs(profilesCurDir.getAbsolutePath());
             FileUtils.mkdirs(profilesRefDir.getAbsolutePath());
-            rule.put(String.format("/data/misc/profiles/cur/%d/%s", BlackBoxCore.getUserId(), packageName), profilesCurDir.getAbsolutePath());
-            rule.put(String.format("/data/misc/profiles/ref/%d/%s", BlackBoxCore.getUserId(), packageName), profilesRefDir.getAbsolutePath());
+            rule.put(String.format(Locale.US, "/data/misc/profiles/cur/%d/%s", BlackBoxCore.getUserId(), packageName), profilesCurDir.getAbsolutePath());
+            rule.put(String.format(Locale.US, "/data/misc/profiles/ref/%d/%s", BlackBoxCore.getUserId(), packageName), profilesRefDir.getAbsolutePath());
 
             File external = externalUserRoot(BlackBoxCore.getUserId());
             String[] sub = {"Android/data/" + packageName + "/files", "Android/data/" + packageName + "/cache",
@@ -140,10 +141,10 @@ public class IOCore {
             Log.w(LOG, "external redirect for " + packageName + " -> " + external
                     + " filesDirReady=" + new File(external, sub[0]).isDirectory());
             rule.put("/sdcard", external.getAbsolutePath());
-            rule.put(String.format("/storage/emulated/%d", systemUserId), external.getAbsolutePath());
-            rule.put(String.format("/mnt/user/%d/primary", systemUserId), external.getAbsolutePath());
+            rule.put(String.format(Locale.US, "/storage/emulated/%d", systemUserId), external.getAbsolutePath());
+            rule.put(String.format(Locale.US, "/mnt/user/%d/primary", systemUserId), external.getAbsolutePath());
             blackRule.add("/sdcard/Pictures");
-            blackRule.add(String.format("/storage/emulated/%d/Pictures", systemUserId));
+            blackRule.add(String.format(Locale.US, "/storage/emulated/%d/Pictures", systemUserId));
             if (BlackBoxCore.get().isHideRoot()) {
                 hideRoot(rule);
             }
