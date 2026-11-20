@@ -10,14 +10,25 @@ import android.os.Build;
 import android.os.IBinder;
 import android.util.Log;
 
+import java.lang.reflect.Method;
+
 import androidx.core.app.NotificationCompat;
 
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.utils.compat.BuildCompat;
 
 
+/**
+ * Keeps the engine process alive with a foreground notification.
+ *
+ * The host app can take over that notification: if it ships a class {@code <hostPkg>.EngineNotice} with
+ * {@code static Notification build(Service)} and {@code static void onCommand(Service, Intent)}, the
+ * notification is built by the host and every start command whose action begins with "moc.notice."
+ * is forwarded to it (refresh, dismissed, ...). Without that class the engine shows its own notification.
+ */
 public class DaemonService extends Service {
     public static final String TAG = "DaemonService";
+    public static final String NOTICE_ACTION_PREFIX = "moc.notice.";
     private static final int NOTIFY_ID = BlackBoxCore.getHostPkg().hashCode();
     private static final String CHANNEL_ID = "blackbox_daemon_channel";
     private static final String CHANNEL_NAME = "BlackBox Daemon Service";
@@ -44,11 +55,14 @@ public class DaemonService extends Service {
         Log.d(TAG, "DaemonService onStartCommand");
         
         try {
-            
-            Intent innerIntent = new Intent(this, DaemonInnerService.class);
-            startService(innerIntent);
-            
-            
+            String action = intent != null ? intent.getAction() : null;
+            if (action != null && action.startsWith(NOTICE_ACTION_PREFIX)) {
+                hostCommand(intent);
+                return START_STICKY;
+            }
+            // The old trick of cancelling the notification from DaemonInnerService is gone:
+            // the notification is the platform's own message now and must stay visible.
+
             if (BuildCompat.isOreo()) {
                 if (!startForegroundService()) {
                     Log.w(TAG, "Failed to start foreground service, falling back to regular service");
@@ -116,7 +130,36 @@ public class DaemonService extends Service {
     }
 
     
+    private Class<?> hostNotice() {
+        try {
+            return Class.forName(getPackageName() + ".EngineNotice", true, getClassLoader());
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    private void hostCommand(Intent intent) {
+        try {
+            Class<?> c = hostNotice();
+            if (c == null) return;
+            Method m = c.getMethod("onCommand", Service.class, Intent.class);
+            m.invoke(null, this, intent);
+        } catch (Throwable t) {
+            Log.w(TAG, "Host notice command failed: " + t);
+        }
+    }
+
     private Notification createNotification() {
+        try {
+            Class<?> c = hostNotice();
+            if (c != null) {
+                Method m = c.getMethod("build", Service.class);
+                Object n = m.invoke(null, this);
+                if (n instanceof Notification) return (Notification) n;
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "Host notice build failed, using the engine notification: " + t);
+        }
         try {
             NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("Mocgram Engine")
