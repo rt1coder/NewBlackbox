@@ -804,8 +804,8 @@ public class IActivityManagerProxy extends ClassInvocationStub {
 
             
             if (isStorageOrMediaPermission(permission)) {
-                Slog.d(TAG, "ActivityManager checkPermission: Granting storage/media permission: " + permission);
-                return PackageManager.PERMISSION_GRANTED;
+                if (self) return top.niunaijun.blackbox.core.engine.PermGate.storageCheck();
+                return method.invoke(who, args);
             }
             
             int real = (int) method.invoke(who, args);

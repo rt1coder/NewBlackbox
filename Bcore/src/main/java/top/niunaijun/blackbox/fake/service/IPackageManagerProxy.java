@@ -423,7 +423,9 @@ public class IPackageManagerProxy extends BinderInvocationStub {
 
             
             if (isStorageOrMediaPermission(permission)) {
-                Slog.d(TAG, "SimpleAudioPermissionHook: Granting storage/media permission: " + permission + " to " + packageName);
+                if (packageName != null && packageName.equals(BActivityThread.getAppPackageName())) {
+                    return top.niunaijun.blackbox.core.engine.PermGate.storageCheck();
+                }
                 return PackageManager.PERMISSION_GRANTED;
             }
             
@@ -456,7 +458,9 @@ public class IPackageManagerProxy extends BinderInvocationStub {
 
             
             if (isStorageOrMediaPermission(permission)) {
-                Slog.d(TAG, "CheckSelfPermission: Granting storage/media permission: " + permission + " to " + packageName);
+                if (packageName != null && packageName.equals(BActivityThread.getAppPackageName())) {
+                    return top.niunaijun.blackbox.core.engine.PermGate.storageCheck();
+                }
                 return PackageManager.PERMISSION_GRANTED;
             }
             

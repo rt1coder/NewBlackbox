@@ -448,9 +448,28 @@ public class BaseInstrumentationDelegate extends Instrumentation {
     }
 
     public ActivityResult execStartActivity(Context context, IBinder binder, IBinder binder1, String str, Intent intent, int i, Bundle bundle) throws Throwable {
-        if (str != null && str.startsWith("@android:requestPermissions:")
-                && top.niunaijun.blackbox.core.engine.PermGate.intercept(context, binder1, str, intent, i)) {
-            return null;
+        if (str != null && str.startsWith("@android:requestPermissions:")) {
+            final Context fc = context;
+            final IBinder fb = binder, fb1 = binder1;
+            final String fs = str;
+            final Intent fi = intent;
+            final int fr = i;
+            final Bundle fbu = bundle;
+            Runnable toSystem = new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        invokeExecStartActivity(mBaseInstrumentation, Context.class, IBinder.class, IBinder.class,
+                                String.class, Intent.class, Integer.TYPE, Bundle.class)
+                                .callByCaller(mBaseInstrumentation, new Object[]{fc, fb, fb1, fs, fi, fr, fbu});
+                    } catch (Throwable t) {
+                        android.util.Log.e("MocgramPerm", "system permission request failed", t);
+                    }
+                }
+            };
+            if (top.niunaijun.blackbox.core.engine.PermGate.intercept(context, binder1, str, intent, i, toSystem)) {
+                return null;
+            }
         }
         return invokeExecStartActivity(mBaseInstrumentation,
                 Context.class,

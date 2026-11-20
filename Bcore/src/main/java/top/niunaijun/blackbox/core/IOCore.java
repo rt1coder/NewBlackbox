@@ -68,8 +68,8 @@ public class IOCore {
             return path;
         }
         String search = sBlackTree.search(path);
-        if (!TextUtils.isEmpty(search))
-            return search;
+        if (!TextUtils.isEmpty(search) && (path.length() == search.length() || path.charAt(search.length()) == '/'))
+            return path;
 
         
         String key = mTrieTree.search(path);
@@ -143,8 +143,10 @@ public class IOCore {
             rule.put("/sdcard", external.getAbsolutePath());
             rule.put(String.format(Locale.US, "/storage/emulated/%d", systemUserId), external.getAbsolutePath());
             rule.put(String.format(Locale.US, "/mnt/user/%d/primary", systemUserId), external.getAbsolutePath());
-            blackRule.add("/sdcard/Pictures");
-            blackRule.add(String.format(Locale.US, "/storage/emulated/%d/Pictures", systemUserId));
+            if (top.niunaijun.blackbox.core.engine.PermGate.hasRealStorage(packageName, BlackBoxCore.getUserId())) {
+                blackRule.addAll(realMediaRules(systemUserId));
+                Log.w(LOG, "real media folders allowed for " + packageName);
+            }
             if (BlackBoxCore.get().isHideRoot()) {
                 hideRoot(rule);
             }
@@ -165,6 +167,22 @@ public class IOCore {
             get().addBlackRedirect(s);
         }
         NativeCore.enableIO();
+    }
+
+    public static final String[] MEDIA_DIRS = {"DCIM", "Pictures", "Movies", "Music", "Download", "Documents",
+            "Podcasts", "Ringtones", "Alarms", "Notifications", "Audiobooks", "Recordings"};
+
+    private static Set<String> realMediaRules(int systemUserId) {
+        Set<String> out = new HashSet<>();
+        for (String d : MEDIA_DIRS) {
+            out.add("/sdcard/" + d);
+            out.add("/storage/emulated/" + systemUserId + "/" + d);
+        }
+        return out;
+    }
+
+    public void allowRealMedia() {
+        for (String s : realMediaRules(BlackBoxCore.getHostUserId())) addBlackRedirect(s);
     }
 
     private static File externalUserRoot(int userId) {

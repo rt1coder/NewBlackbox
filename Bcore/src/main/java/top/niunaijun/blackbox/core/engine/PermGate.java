@@ -37,6 +37,45 @@ public final class PermGate {
     private static final String EXTRA_NAMES = "android.content.pm.extra.REQUEST_PERMISSIONS_NAMES";
     private static final String EXTRA_RESULTS = "android.content.pm.extra.REQUEST_PERMISSIONS_RESULTS";
     private static final long PENDING_MS = 5 * 60 * 1000L;
+    public static final String STORAGE_ASKED = "mocgram.STORAGE_ASKED";
+    public static final String REAL_STORAGE = "mocgram.REAL_STORAGE";
+    private static final Map<String, Integer> sTarget = new HashMap<String, Integer>();
+
+    public static boolean isStorage(String p) {
+        if (p == null) return false;
+        return p.equals("android.permission.READ_EXTERNAL_STORAGE") || p.equals("android.permission.WRITE_EXTERNAL_STORAGE")
+                || p.startsWith("android.permission.READ_MEDIA_") || p.equals("android.permission.ACCESS_MEDIA_LOCATION")
+                || p.equals("android.permission.MANAGE_EXTERNAL_STORAGE");
+    }
+
+    private static int targetSdk(String pkg, int user) {
+        synchronized (sTarget) {
+            Integer t = sTarget.get(pkg);
+            if (t != null) return t;
+        }
+        int t = 30;
+        try {
+            android.content.pm.ApplicationInfo ai = BlackBoxCore.getBPackageManager().getApplicationInfo(pkg, 0, user);
+            if (ai != null) t = ai.targetSdkVersion;
+        } catch (Throwable ignored) {
+        }
+        synchronized (sTarget) {
+            sTarget.put(pkg, t);
+        }
+        return t;
+    }
+
+    public static int storageCheck() {
+        String pkg = guestPkg();
+        if (pkg == null) return PackageManager.PERMISSION_GRANTED;
+        int user = userId();
+        if (targetSdk(pkg, user) < 23) return PackageManager.PERMISSION_GRANTED;
+        return granted(pkg, user).contains(STORAGE_ASKED) ? PackageManager.PERMISSION_GRANTED : PackageManager.PERMISSION_DENIED;
+    }
+
+    public static boolean hasRealStorage(String pkg, int userId) {
+        return granted(pkg, userId).contains(REAL_STORAGE);
+    }
 
     private static final Map<String, Boolean> sDangerous = new HashMap<String, Boolean>();
     private static final Map<String, Long> sPending = new HashMap<String, Long>();
@@ -178,17 +217,30 @@ public final class PermGate {
         return PackageManager.PERMISSION_DENIED;
     }
 
-    public static boolean intercept(final Context ctx, final IBinder token, final String who, Intent intent, final int requestCode) {
+    public static boolean intercept(final Context ctx, final IBinder token, final String who, Intent intent, final int requestCode,
+                                    final Runnable toSystem) {
         if (intent == null || !ACTION_REQUEST.equals(intent.getAction()) || !(ctx instanceof Activity)) return false;
         final String[] perms = intent.getStringArrayExtra(EXTRA_NAMES);
         final String pkg = guestPkg();
         if (perms == null || pkg == null) return false;
         final int user = userId();
         Set<String> have = granted(pkg, user);
+        boolean wantsStorage = false;
+        for (String p : perms) if (isStorage(p)) wantsStorage = true;
+        if (wantsStorage && !have.contains(STORAGE_ASKED)) {
+            final Activity act = (Activity) ctx;
+            new Handler(Looper.getMainLooper()).post(new Runnable() {
+                @Override
+                public void run() {
+                    showStorageDialog(act, token, who, requestCode, perms, pkg, user, toSystem);
+                }
+            });
+            return true;
+        }
         boolean needSystem = false;
         final List<String> ask = new ArrayList<String>();
         for (String p : perms) {
-            if (!isDangerous(p)) continue;
+            if (isStorage(p) || !isDangerous(p)) continue;
             if (hostCheck(p) != PackageManager.PERMISSION_GRANTED) needSystem = true;
             else if (!have.contains(p) && !ask.contains(p)) ask.add(p);
         }
@@ -211,6 +263,59 @@ public final class PermGate {
             }
         });
         return true;
+    }
+
+    private static void showStorageDialog(final Activity a, final IBinder token, final String who, final int requestCode,
+                                          final String[] perms, final String pkg, final int user, final Runnable toSystem) {
+        boolean ar = Locale.getDefault().getLanguage().startsWith("ar");
+        CharSequence app = pkg;
+        try {
+            app = a.getApplicationInfo().loadLabel(a.getPackageManager());
+        } catch (Throwable ignored) {
+        }
+        String msg = ar
+                ? "يطلب «" + app + "» الوصول إلى الملفات.\n\n• ملفاتي: يرى الصور والفيديو والموسيقى والتنزيلات الموجودة على جهازك.\n• مساحة خاصة: يرى ملفاته فقط، وهذا الأكثر أماناً."
+                : "\"" + app + "\" wants to access files.\n\n• My files: sees the photos, videos, music and downloads on your device.\n• Private space: sees only its own files. This is the safest choice.";
+        try {
+            new AlertDialog.Builder(a)
+                    .setMessage(msg)
+                    .setCancelable(false)
+                    .setPositiveButton(ar ? "ملفاتي" : "My files", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface d, int w) {
+                            List<String> g = new ArrayList<String>();
+                            g.add(STORAGE_ASKED);
+                            g.add(REAL_STORAGE);
+                            grant(pkg, user, g);
+                            try {
+                                top.niunaijun.blackbox.core.IOCore.get().allowRealMedia();
+                            } catch (Throwable e) {
+                                Log.w(TAG, "allowRealMedia: " + e);
+                            }
+                            if (hostCheck("android.permission.READ_EXTERNAL_STORAGE") != PackageManager.PERMISSION_GRANTED && toSystem != null) {
+                                toSystem.run();
+                            } else {
+                                deliver(a, token, who, requestCode, perms, pkg, user);
+                            }
+                        }
+                    })
+                    .setNegativeButton(ar ? "مساحة خاصة" : "Private space", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface d, int w) {
+                            List<String> g = new ArrayList<String>();
+                            g.add(STORAGE_ASKED);
+                            grant(pkg, user, g);
+                            deliver(a, token, who, requestCode, perms, pkg, user);
+                        }
+                    })
+                    .show();
+        } catch (Throwable e) {
+            Log.w(TAG, "storage dialog failed: " + e);
+            List<String> g = new ArrayList<String>();
+            g.add(STORAGE_ASKED);
+            grant(pkg, user, g);
+            deliver(a, token, who, requestCode, perms, pkg, user);
+        }
     }
 
     private static void showDialog(final Activity a, final IBinder token, final String who, final int requestCode,
@@ -260,6 +365,10 @@ public final class PermGate {
         Set<String> have = granted(pkg, user);
         int[] results = new int[perms.length];
         for (int i = 0; i < perms.length; i++) {
+            if (isStorage(perms[i])) {
+                results[i] = have.contains(STORAGE_ASKED) ? PackageManager.PERMISSION_GRANTED : PackageManager.PERMISSION_DENIED;
+                continue;
+            }
             int real = hostCheck(perms[i]);
             if (real == PackageManager.PERMISSION_GRANTED && isDangerous(perms[i]) && !have.contains(perms[i])) {
                 real = PackageManager.PERMISSION_DENIED;
