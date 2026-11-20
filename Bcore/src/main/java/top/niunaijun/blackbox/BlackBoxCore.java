@@ -866,6 +866,10 @@ public class BlackBoxCore extends ClientConfiguration {
         } else {
             mProcessType = ProcessType.BAppClient;
         }
+        try {
+            top.niunaijun.blackbox.core.engine.EngineCrash.install(mProcessType == ProcessType.BAppClient);
+        } catch (Throwable ignored) {
+        }
         if (BlackBoxCore.get().isBlackProcess()) {
             BEnvironment.load();
             if (processName.endsWith("p0")) {

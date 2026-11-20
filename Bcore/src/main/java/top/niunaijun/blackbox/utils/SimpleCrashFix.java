@@ -36,6 +36,21 @@ public class SimpleCrashFix {
     }
     
     
+    public static boolean isRecoverable(Thread thread, Throwable throwable) {
+        if (onMain(thread)) return false;
+        try {
+            return isNullContextCrash(throwable) || isGooglePlayServicesCrash(throwable) || isWebViewCrash(throwable)
+                    || isAttributionSourceCrash(throwable) || isSocialMediaAppCrash(throwable);
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
+    private static boolean onMain(Thread t) {
+        android.os.Looper main = android.os.Looper.getMainLooper();
+        return main != null && main.getThread() == t;
+    }
+
     private static void installGlobalExceptionHandler() {
         try {
             
@@ -45,35 +60,40 @@ public class SimpleCrashFix {
                 @Override
                 public void uncaughtException(Thread thread, Throwable throwable) {
                     
-                    if (isNullContextCrash(throwable)) {
+                    if (!onMain(thread) && isNullContextCrash(throwable)) {
+                        top.niunaijun.blackbox.core.engine.EngineLog.error(TAG, "swallowed background crash on " + thread.getName(), throwable);
                         Slog.w(TAG, "Caught null context crash, preventing crash: " + throwable.getMessage());
                         BlackBoxCore.get().sendLogs("CRASH DETECTED (Caught/NullContext): " + throwable.getMessage(), true);
                         return; 
                     }
 
                     
-                    if (isGooglePlayServicesCrash(throwable)) {
+                    if (!onMain(thread) && isGooglePlayServicesCrash(throwable)) {
+                        top.niunaijun.blackbox.core.engine.EngineLog.error(TAG, "swallowed background crash on " + thread.getName(), throwable);
                         Slog.w(TAG, "Caught Google Play Services crash, preventing crash: " + throwable.getMessage());
                         BlackBoxCore.get().sendLogs("CRASH DETECTED (Caught/GMS): " + throwable.getMessage(), true);
                         return; 
                     }
 
                     
-                    if (isWebViewCrash(throwable)) {
+                    if (!onMain(thread) && isWebViewCrash(throwable)) {
+                        top.niunaijun.blackbox.core.engine.EngineLog.error(TAG, "swallowed background crash on " + thread.getName(), throwable);
                         Slog.w(TAG, "Caught WebView crash, preventing crash: " + throwable.getMessage());
                         BlackBoxCore.get().sendLogs("CRASH DETECTED (Caught/WebView): " + throwable.getMessage(), true);
                         return; 
                     }
 
                     
-                    if (isAttributionSourceCrash(throwable)) {
+                    if (!onMain(thread) && isAttributionSourceCrash(throwable)) {
+                        top.niunaijun.blackbox.core.engine.EngineLog.error(TAG, "swallowed background crash on " + thread.getName(), throwable);
                         Slog.w(TAG, "Caught AttributionSource crash, preventing crash: " + throwable.getMessage());
                         BlackBoxCore.get().sendLogs("CRASH DETECTED (Caught/Attribution): " + throwable.getMessage(), true);
                         return; 
                     }
 
                     
-                    if (isSocialMediaAppCrash(throwable)) {
+                    if (!onMain(thread) && isSocialMediaAppCrash(throwable)) {
+                        top.niunaijun.blackbox.core.engine.EngineLog.error(TAG, "swallowed background crash on " + thread.getName(), throwable);
                         Slog.w(TAG, "Caught social media app crash, preventing crash: " + throwable.getMessage());
                         BlackBoxCore.get().sendLogs("CRASH DETECTED (Caught/SocialMedia): " + throwable.getMessage(), true);
                         return; 

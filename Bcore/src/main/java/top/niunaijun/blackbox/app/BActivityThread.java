@@ -359,7 +359,7 @@ public class BActivityThread extends IBActivityThread.Stub {
         if (isInit())
             return;
         try {
-            CrashHandler.create();
+            top.niunaijun.blackbox.core.engine.EngineCrash.install(true);
         } catch (Throwable ignored) {
         }
 

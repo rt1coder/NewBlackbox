@@ -27,6 +27,11 @@ jobs:
           find . -name "build.gradle" -not -path "./.git/*" -exec sed -i -E 's/VERSION_(11|17|21)/VERSION_1_8/g' {} +
           grep -rn "VERSION_" --include=build.gradle . | head -20
 
+      - name: Stamp engine build number
+        run: |
+          sed -i 's/BUILD = "dev"/BUILD = "${{ github.run_number }}"/' Bcore/src/main/java/top/niunaijun/blackbox/core/engine/MocgramEngine.java
+          grep BUILD Bcore/src/main/java/top/niunaijun/blackbox/core/engine/MocgramEngine.java
+
       - name: Build libraries
         run: |
           chmod +x gradlew

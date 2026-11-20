@@ -48,21 +48,25 @@ public final class Slog {
 
     
     public static int w(String tag, String msg, Throwable tr) {
+        top.niunaijun.blackbox.core.engine.EngineLog.error(tag, msg, tr);
         return Log.println(Log.WARN, tag,
                 msg + '\n' + Log.getStackTraceString(tr));
     }
 
     public static int w(String tag, Throwable tr) {
+        top.niunaijun.blackbox.core.engine.EngineLog.error(tag, "", tr);
         return Log.println(Log.WARN, tag, Log.getStackTraceString(tr));
     }
 
     
     public static int e(String tag, String msg) {
+        top.niunaijun.blackbox.core.engine.EngineLog.error(tag, msg, null);
         return Log.println(Log.ERROR, tag, msg);
     }
 
     
     public static int e(String tag, String msg, Throwable tr) {
+        top.niunaijun.blackbox.core.engine.EngineLog.error(tag, msg, tr);
         return Log.println(Log.ERROR, tag,
                 msg + '\n' + Log.getStackTraceString(tr));
     }
