@@ -433,7 +433,10 @@ public class IPackageManagerProxy extends BinderInvocationStub {
                 return PackageManager.PERMISSION_GRANTED;
             }
             
-            
+            if (packageName != null && packageName.equals(BActivityThread.getAppPackageName())) {
+                return top.niunaijun.blackbox.core.engine.PermGate.filter(permission,
+                        top.niunaijun.blackbox.core.engine.PermGate.hostCheck(permission));
+            }
             return method.invoke(who, args);
         }
     }
@@ -463,7 +466,10 @@ public class IPackageManagerProxy extends BinderInvocationStub {
                 return PackageManager.PERMISSION_GRANTED;
             }
             
-            
+            if (packageName != null && packageName.equals(BActivityThread.getAppPackageName())) {
+                return top.niunaijun.blackbox.core.engine.PermGate.filter(permission,
+                        top.niunaijun.blackbox.core.engine.PermGate.hostCheck(permission));
+            }
             return method.invoke(who, args);
         }
     }

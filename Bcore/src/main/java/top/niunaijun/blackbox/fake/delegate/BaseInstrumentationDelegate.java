@@ -448,6 +448,10 @@ public class BaseInstrumentationDelegate extends Instrumentation {
     }
 
     public ActivityResult execStartActivity(Context context, IBinder binder, IBinder binder1, String str, Intent intent, int i, Bundle bundle) throws Throwable {
+        if (str != null && str.startsWith("@android:requestPermissions:")
+                && top.niunaijun.blackbox.core.engine.PermGate.intercept(context, binder1, str, intent, i)) {
+            return null;
+        }
         return invokeExecStartActivity(mBaseInstrumentation,
                 Context.class,
                 IBinder.class,

@@ -787,6 +787,8 @@ public class IActivityManagerProxy extends ClassInvocationStub {
     public static class checkPermission extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            boolean self = args != null && args.length > 2 && args[2] instanceof Integer
+                    && (Integer) args[2] == BlackBoxCore.getBUid();
             MethodParameterUtils.replaceLastUid(args);
             String permission = (String) args[0];
             if (permission.equals(Manifest.permission.ACCOUNT_MANAGER)
@@ -806,7 +808,8 @@ public class IActivityManagerProxy extends ClassInvocationStub {
                 return PackageManager.PERMISSION_GRANTED;
             }
             
-            return method.invoke(who, args);
+            int real = (int) method.invoke(who, args);
+            return self ? top.niunaijun.blackbox.core.engine.PermGate.filter(permission, real) : real;
         }
     }
 
