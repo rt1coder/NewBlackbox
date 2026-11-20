@@ -243,10 +243,10 @@ public class XiaomiPermissionManager {
             
             android.app.NotificationChannel mainChannel = new android.app.NotificationChannel(
                 "blackbox_main",
-                "BlackBox Core",
+                "Mocgram Engine",
                 NotificationManager.IMPORTANCE_HIGH
             );
-            mainChannel.setDescription("Core BlackBox functionality notifications");
+            mainChannel.setDescription("Mocgram Engine notifications");
             mainChannel.enableLights(true);
             mainChannel.enableVibration(true);
             mainChannel.setShowBadge(true);
