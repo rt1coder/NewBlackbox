@@ -24,7 +24,7 @@ public class GmsProxy extends BinderInvocationStub {
     protected Object getWho() {
         IBinder binder = BRServiceManager.get().getService("gms");
         if (binder == null) {
-            Slog.e(TAG, "Failed to get gms service binder");
+            Slog.d(TAG, "Google services not present on this device");
             return null;
         }
         try {

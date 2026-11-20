@@ -36,7 +36,7 @@ public class NetworkPermissionCompat implements IInjectHook {
                 sInstalled = true;
                 Slog.d(TAG, "disabled framework permission cache");
             } catch (Throwable e) {
-                Slog.w(TAG, "install failed: " + e.getMessage(), e);
+                Slog.d(TAG, "not needed on this Android version: " + e);
             }
         }
     }
