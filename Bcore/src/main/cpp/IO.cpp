@@ -10,6 +10,7 @@ jmethodID getAbsolutePathMethodId;
 list<IO::RelocateInfo> relocate_rule;
 
 char *replace(const char *str, const char *src, const char *dst) {
+    if (src == nullptr || src[0] == 0) return strdup(str);
     const char *pos = str;
     int count = 0;
     while ((pos = strstr(pos, src))) {
@@ -17,9 +18,11 @@ char *replace(const char *str, const char *src, const char *dst) {
         pos += strlen(src);
     }
 
-    size_t result_len = strlen(str) + (strlen(dst) - strlen(src)) * count + 1;
-    char *result = (char *) malloc(result_len);
-    memset(result, 0, strlen(result));
+    size_t src_len = strlen(src), dst_len = strlen(dst);
+    size_t result_len = strlen(str) + 1;
+    if (dst_len > src_len) result_len += (dst_len - src_len) * (size_t) count;
+    char *result = (char *) calloc(result_len, 1);
+    if (result == nullptr) return strdup(str);
 
     const char *left = str;
     const char *right = nullptr;
